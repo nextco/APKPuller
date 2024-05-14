@@ -13,7 +13,11 @@ def print_success(msg):
     print(f'{Fore.GREEN}[+] {msg}{Fore.RESET}')
 
 
-def adb_installed():
+def print_info(msg):
+    print(f'{Fore.YELLOW}[+] {msg}{Fore.RESET}')
+
+
+def adb_devices():
     cmd = 'adb devices'
     try:
         result = subprocess.check_output(cmd.split(), universal_newlines=True)
@@ -23,96 +27,85 @@ def adb_installed():
         sys.exit(1)
 
 
+def filter_app(app):
+    bad_apps = ['com.android','com.google', 'com.huawei', 'org.chromium', 'android']
+    for f in bad_apps:
+        if f in app:
+            return None
+    return app
+
+
+def get_path_apk(app_name):
+    try:
+        result = subprocess.check_output(['adb', 'shell', 'pm', 'path', app_name], universal_newlines=True)
+        package_lines = result.split('\n')
+        for paths in package_lines:
+            path = paths[8:].strip()
+            if 'base.apk' in path:
+                return path
+        return False
+    except subprocess.CalledProcessError as e:
+        sys.exit(1)
+
+
 def list_packages():
-    packages = []
+    packages = {}
     try:
         result = subprocess.check_output(['adb', 'shell', 'pm', 'list', 'packages'], universal_newlines=True)
-        package_lines = result.split('\n')
-        for line in package_lines:
-            line = line[8:].strip()
-            if line:
-                packages.append(line)
+        lines = result.split('\n')
+        for line in lines:
+            app = filter_app(line[8:].strip())
+            if app:
+                path = get_path_apk(app)
+                if path and path != '':
+                    # print(app, path)
+                    packages[app] = path
         return packages
     except subprocess.CalledProcessError as e:
-        return None
+        sys.exit(1)
 
 
-def check_package_exists(package_name):
+def dump_apk(app_name, app_path, user_directory):
     try:
-        package_lines = list_packages()
-        for line in package_lines:
-            if package_name.lower() in line.lower():
-                return True
-        return False
+        app_name = f'{app_name}.apk'
+        if user_directory == '.':
+            destination_path = os.path.join(os.getcwd(), app_name)
+        else:
+            destination_path = os.path.join(user_directory, app_name)
+
+        subprocess.run(['adb', 'pull', app_path, destination_path], check=True, stdout=subprocess.PIPE)
+        print_success(f'APK downloaded successfully to directory {destination_path}')
     except subprocess.CalledProcessError as e:
-        return False
-
-
-def get_path_apk(package_name):
-    try:
-        packages = []
-        result = subprocess.check_output(['adb', 'shell', 'pm', 'path', package_name], universal_newlines=True)
-        package_lines = result.split('\n')
-        for line in package_lines:
-            line = line[8:].strip()
-            if line:
-                packages.append(line)
-        return packages
-    except subprocess.CalledProcessError as e:
-        return None
-
-
-def get_apks(apk_paths, user_directory='.'):
-    for apk_path in apk_paths:
-        try:
-            apk_filename = os.path.basename(apk_path)
-
-            if user_directory == '.':
-                destination_path = os.path.join(os.getcwd(), apk_filename)
-            else:
-                destination_path = os.path.join(user_directory, apk_filename)
-
-            subprocess.run(['adb', 'pull', apk_path, destination_path], check=True, stdout=subprocess.PIPE)
-            print_success(f'APK downloaded successfully to directory {destination_path}')
-        except subprocess.CalledProcessError as e:
-            print_error(f'Error downloading APK {apk_path}: {e}')
+        print_error(f'Error downloading APK {app_path}: {e}')
+        sys.exit(1)
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-l', '--list', help='list packages', action='store_true')
-    parser.add_argument('-c', '--check', help='check if package is on mobile', metavar='')
     parser.add_argument('-g', '--grep', help='search packet in packet list', metavar='')
-    parser.add_argument('-v', '--view', help='view paths of the APKs in a package.', metavar='')
-    parser.add_argument('-p', '--pull', nargs=2, help='adb extracts APK into directories <package name> <directory>',
-                        metavar='')
+    parser.add_argument('-p', '--pull', help='adb extracts APK into dir', metavar='')
+    parser.add_argument('-o', '--output', help='output folder', metavar='')
 
     args = parser.parse_args()
 
-    adb_installed()
+    # Check connect devices
+    adb_devices()
 
-    if args.list:
-        packages = list_packages()
-        if args.grep:
-            packages = [package for package in packages if args.grep in package]
-        for package in packages:
-            print_success(package)
+    # Default operation (list)
+    apps = list_packages()
+    for app in apps:
+        print_success(app)
 
-    if args.check:
-        if check_package_exists(args.check):
-            print_success(f'{args.check} - package exists')
-        else:
-            print_error(f'{args.check} - package does not exist')
-
-    if args.view:
-        apks = get_path_apk(args.view)
-        for apk in apks:
-            print_success(apk)
+    if args.grep:
+        for app, path in apps.items():
+            if args.grep in app:
+                print_success(f'\n\n{app} -> {path}')
 
     if args.pull:
-        packagename, directory = args.pull
-        apks = get_path_apk(packagename)
-        get_apks(apks, directory)
+        for app, path in apps.items():
+            if args.pull in app:
+                print_info(f'{app} downloading')
+                dump_apk(app, path, args.output)
 
 
 if __name__ == '__main__':
