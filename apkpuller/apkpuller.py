@@ -2,6 +2,7 @@ import os
 import sys
 import subprocess
 import argparse
+from hashlib import sha256
 from colorama import Fore
 
 
@@ -67,7 +68,6 @@ def list_packages():
 
 def dump_apk(app_name, app_path, user_directory):
     try:
-        app_name = f'{app_name}.apk'
         if user_directory == '.':
             destination_path = os.path.join(os.getcwd(), app_name)
         else:
@@ -84,8 +84,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-g', '--grep', help='search packet in packet list', metavar='')
     parser.add_argument('-p', '--pull', help='adb extracts APK into dir', metavar='')
-    parser.add_argument('-o', '--output', help='output folder', metavar='')
-
+    parser.add_argument('-o', '--output', help='output folder: <-o .>', metavar='')
+    parser.add_argument('-m', '--mode', help='extract sample for malware analysis <-m com.nivel4.fridaen45minutos>', metavar='')
     args = parser.parse_args()
 
     # Check connect devices
@@ -105,7 +105,14 @@ def main():
         for app, path in apps.items():
             if args.pull in app:
                 print_info(f'{app} downloading')
-                dump_apk(app, path, args.output)
+                dump_apk(f'{app}.apk', path, args.output)
+
+    if args.mode:
+        for app, path in apps.items():
+            if args.mode in app:
+                    print_info(f'Extracting malware sample for analysis')
+                    sample_name = sha256(app.encode('utf-8')).hexdigest()
+                    dump_apk(sample_name, path, args.output)
 
 
 if __name__ == '__main__':
