@@ -63,7 +63,7 @@ def list_packages():
             app = filter_app(line[8:].strip())
             if app:
                 path = get_path_apk(app)
-                if path and path != '':
+                if path:
                     # print(app, path)
                     packages[app] = path
         return packages
