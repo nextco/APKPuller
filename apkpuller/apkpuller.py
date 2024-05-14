@@ -18,6 +18,7 @@ def print_info(msg):
     print(f'{Fore.YELLOW}[+] {msg}{Fore.RESET}')
 
 
+# Check connected devices
 def adb_devices():
     cmd = 'adb devices'
     try:
@@ -28,6 +29,8 @@ def adb_devices():
         sys.exit(1)
 
 
+# Exclude internal list based on substring
+# Input: app.name
 def filter_app(app):
     bad_apps = ['com.android','com.google', 'com.huawei', 'org.chromium', 'android']
     for f in bad_apps:
@@ -36,6 +39,8 @@ def filter_app(app):
     return app
 
 
+# Get the path of apk on device, and extract the most common 'base.apk'
+# Input: app.name
 def get_path_apk(app_name):
     try:
         result = subprocess.check_output(['adb', 'shell', 'pm', 'path', app_name], universal_newlines=True)
@@ -84,11 +89,11 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-g', '--grep', help='search packet in packet list', metavar='')
     parser.add_argument('-p', '--pull', help='adb extracts APK into dir', metavar='')
-    parser.add_argument('-o', '--output', help='output folder: <-o .>', metavar='')
-    parser.add_argument('-m', '--mode', help='extract sample for malware analysis <-m com.nivel4.fridaen45minutos>', metavar='')
+    parser.add_argument('-o', '--output', help='output folder', metavar='')
+    parser.add_argument('-m', '--mode', help='extract sample for malware analysis', metavar='')
     args = parser.parse_args()
 
-    # Check connect devices
+    # Check connected devices
     adb_devices()
 
     # Default operation (list)
@@ -110,9 +115,9 @@ def main():
     if args.mode:
         for app, path in apps.items():
             if args.mode in app:
-                    print_info(f'Extracting malware sample for analysis')
-                    sample_name = sha256(app.encode('utf-8')).hexdigest()
-                    dump_apk(sample_name, path, args.output)
+                print_info(f'Extracting malware sample for analysis')
+                sample_name = sha256(app.encode('utf-8')).hexdigest()
+                dump_apk(sample_name, path, args.output)
 
 
 if __name__ == '__main__':
