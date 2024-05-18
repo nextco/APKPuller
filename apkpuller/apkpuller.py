@@ -122,12 +122,12 @@ def dump_apk(app_name, is_splitted, paths, out_path):
         merge_apk(paths, dst_path)
 
     else:
-        pull_apk(paths[0], out_path)
+        pull_apk(paths[0], dst_path)
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-g', '--grep', help='search packet in packet list', metavar='')
+    parser.add_argument('-s', '--search', help='search packet in packet list', metavar='')
     parser.add_argument('-p', '--pull', help='adb extracts APK into dir', metavar='')
     parser.add_argument('-o', '--output', help='output folder', metavar='')
     parser.add_argument('-m', '--malware', help='extract sample for malware analysis', metavar='')
@@ -139,13 +139,13 @@ def main():
     # Default operation (list)
     apks = list_packages()
 
-    if not (args.grep or args.pull or args.malware):
+    if not (args.search or args.pull or args.malware):
         for app in apks:
             print_success(app[0])
 
-    if args.grep:
+    if args.search:
         for app, is_splitted, paths in apks:
-            if args.grep in app:
+            if args.search in app:
                 print_success(f'App Name: {app} | is_splitted: {is_splitted}')
                 print_paths(paths)
 
@@ -154,7 +154,7 @@ def main():
             if args.pull in app:                            # Some hackish way to download even if input is bad
                 dump_apk(app, is_splitted, paths, args.output)
     else:
-        print_error('apkpuller -p <app> -o <output_dir>')
+        print_info('apkpuller -p <app> -o <output_dir>')
 
     '''
     if args.malware:
