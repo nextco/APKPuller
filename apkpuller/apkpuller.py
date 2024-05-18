@@ -120,9 +120,9 @@ def dump_apk(app_name, is_splitted, paths, out_path):
     # if splitted -> join
     if is_splitted:
         merge_apk(paths, dst_path)
-
     else:
         pull_apk(paths[0], dst_path)
+        print_success(f'APK downloaded in -> {dst_path}')
 
 
 def main():
