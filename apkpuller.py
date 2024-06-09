@@ -1,10 +1,11 @@
+import argparse
 import os
 import sys
 import subprocess
-import tempfile
 import shutil
-import argparse
+import tempfile
 from hashlib import sha256
+from pathlib import Path
 
 
 def print_paths(paths):
@@ -41,7 +42,6 @@ def get_path_apk(app_name):
     paths = []
 
     cmd = f'adb shell pm path {app_name}'
-
     r = subprocess.check_output(cmd.split(), universal_newlines=True).split('\n')
     for line in r:
         path = line[8:].strip()
@@ -80,8 +80,19 @@ def pull_apk(src, dst):
 
 
 def sign_apk(path):
-    cmd = f'java -jar A:/Android/utils/uber-apk-signer.jar --apks {path}'
+    cmd = f'java -jar ./utils/uber-apk-signer-1.3.0.jar --apks {path}'
     subprocess.run(cmd.split(), check=True, stdout=subprocess.PIPE)
+
+    # Delete apk.idsig
+    idsig = f'{path[:-4]}-aligned-debugSigned.apk.idsig'
+    os.remove(idsig)
+
+    # Delete unsigned apk
+    os.remove(path)
+
+    # Rename signed apk
+    path_signed = f'{path[:-4]}-aligned-debugSigned.apk'
+    os.rename(path_signed, path)
 
 
 def merge_apk(paths, dst_path):
@@ -90,7 +101,7 @@ def merge_apk(paths, dst_path):
     for path in paths:
         pull_apk(path, tmp_dir)
 
-    cmd = f'java -jar A:/Android/utils/APKEditor-1.3.9.jar m -i {tmp_dir} -o {dst_path}'
+    cmd = f'java -jar ./utils/APKEditor-1.3.9.jar m -i {tmp_dir} -o {dst_path}'
     subprocess.run(cmd.split(), check=True, stdout=subprocess.PIPE)
     shutil.rmtree(tmp_dir)
 
@@ -121,11 +132,21 @@ def dump_apk(app_name, is_splitted, paths, out_path):
     return dst_path
 
 
+def rename_apk(path):
+    print(f'Preparing malware sample for analysis -> {path}')
+
+    apk_path = Path(path)
+    sample_name = sha256(apk_path.name.encode()).hexdigest()
+
+    sample_path = apk_path.parent.joinpath(sample_name)
+    os.rename(path, sample_path)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-s', '--search', help='search packet in packet list', metavar='')
     parser.add_argument('-p', '--pull', help='adb extracts APK into dir', metavar='')
-    parser.add_argument('-o', '--output', help='output folder', metavar='')
+    parser.add_argument('-o', '--output', help='output must be a folder', metavar='')
     parser.add_argument('-m', '--malware', help='extract sample for malware analysis', metavar='')
     args = parser.parse_args()
 
@@ -142,20 +163,17 @@ def main():
     if args.search:
         for app, is_splitted, paths in apks:
             if args.search in app:
-                print(f'App Name: {app} | is_splitted: {is_splitted}')
+                print(f'\nApp Name: {app} | is_splitted: {is_splitted}')
                 print_paths(paths)
 
     if args.pull and args.output:
         for app, is_splitted, paths in apks:
             if args.pull in app:                            # Some hackish way to download even if input is bad
                 dst_apk = dump_apk(app, is_splitted, paths, args.output)
-                print(dst_apk)
 
-            if args.malware:
-                print(f'Extracting malware sample for analysis')
-                sample_name = sha256(app.encode('utf-8')).hexdigest()
-                print(f'sample_name = {sample_name}')
-                # dump_apk(sample_name, path, args.output)
+                if args.malware:
+                    rename_apk(dst_apk)
+
     else:
         print('apkpuller -p <app> -o <output_dir>')
 
