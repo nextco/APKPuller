@@ -1,55 +1,23 @@
 # APKPuller
-Tool extract APKs from device to desktop directories
+Tool to extract & Join APKs from device to desktop directories
 
-## Install 
+
+- Download
+
 ```bash
-pip3 install apkpuller
+python3 apkpuller.py -p <app> -o <output_dir>
 ```
-
-## How to use
-
-- Help menu
-
-<p align="left">
-<img src="/images/help.png">
-</p>
-<br>
 
 - List all packages
 
 ```bash
-apkpuller -l
+python3 apkpuller.py
 ```
 <br>
 
-- Grep the package list
+- Search
 
 ```bash
-apkpuller -l -g install
+python3 apkpuller.py -s <search>
 ```
 
-<p align="left">
-<img src="/images/grepPackage.png">
-</p>
-<br>
-
-- view paths of the APKs in a package
-
-```bash
-apkpuller -v [Package Name]
-```
-
-<p align="left">
-<img src="/images/grepPackage.png">
-</p>
-<br>
-
-- ADB extracts APK into directories 
-
-```bash
-apkpuller -p <package name> <directory>
-```
-
-<p align="left">
-<img src="/images/APKPull.png">
-</p>
